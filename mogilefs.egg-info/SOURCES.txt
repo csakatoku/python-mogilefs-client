@@ -1,0 +1,9 @@
+setup.cfg
+setup.py
+mogilefs/__init__.py
+mogilefs.egg-info/PKG-INFO
+mogilefs.egg-info/SOURCES.txt
+mogilefs.egg-info/dependency_links.txt
+mogilefs.egg-info/entry_points.txt
+mogilefs.egg-info/not-zip-safe
+mogilefs.egg-info/top_level.txt

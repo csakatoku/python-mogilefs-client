@@ -1,0 +1,15 @@
+Metadata-Version: 1.0
+Name: mogilefs
+Version: 0.1.0dev
+Summary: mogilefs
+Home-page: UNKNOWN
+Author: Chihio Sakatoku
+Author-email: csakatoku@gmail.com
+License: GPL
+Description: mogilefs
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware
