@@ -1,13 +1,24 @@
 # -*- coding: utf-8 -*-
+import httplib
+
+__all__ = ['MogileFSError', 'MogileFSHTTPError', 'MogileFSTrackerError']
 
 class MogileFSError(Exception):
     pass
 
-class NoDomainError(MogileFSError):
-    pass
+class MogileFSTrackerError(MogileFSError):
+    def __init__(self, errstr, err=None):
+        self.errstr = errstr
+        self.err = err
 
-class NoClassError(MogileFSError):
-    pass
+    def __str__(self):
+        return self.errstr
 
-class NoKeyError(MogileFSError):
-    pass
+class MogileFSHTTPError(MogileFSError):
+    def __init__(self, code, headers, content):
+        self.code = code
+        self.headers = headers
+        self.content = content
+
+    def __str__(self):
+        return 'HTTP Error %d: %s' % (self.code, httplib.response[self.code])

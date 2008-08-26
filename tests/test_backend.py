@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from mogilefs import Backend, MogileFSError
+from mogilefs.backend import Backend
+from mogilefs.exceptions import MogileFSError
 
 def get_backend():
     return Backend(["127.0.0.1:7001"])
