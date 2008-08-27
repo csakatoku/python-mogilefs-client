@@ -36,44 +36,20 @@ class HttpResponse(object):
             return 0
     content_length = property(get_content_length)
 
-class File(object):
-    def close(self):
-        raise NotImplementedError()
-
-    def isatty(self):
-        return False
-
-    def tell(self):
-        raise NotImplementedError()
-
-    def seek(self, pos, mode=0):
-        raise NotImplementedError()
-
-    def read(self, n=-1):
-        raise NotImplementedError()
-
-    def readline(self, length=None):
-        raise NotImplementedError()
-
-    def readlines(self, sizehint=0):
-        raise NotImplementedError()
-
-    def truncate(self, size=None):
-        raise NotImplementedError()
-
-    def write(self, content):
-        pass
-
-    def flush(self):
-        pass
-
-class HttpFile(File):
+class HttpFile(object):
     def __init__(self, mg, fid, key, cls, create_close_arg=None):
         self.mg = mg
         self.fid = fid
         self.key = key
         self.cls = cls
         self.create_close_arg = create_close_arg or {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        if not self._closed:
+            self.close()
 
     def __del__(self):
         if not self._closed:
@@ -156,6 +132,12 @@ class ClientHttpFile(HttpFile):
 
         return content
 
+    def readline(self, length=None):
+        raise NotImplementedError()
+
+    def readlines(self, sizehint=0):
+        raise NotImplementedError()
+
     def write(self, content):
         _complain_ifclosed(self._closed)
         _complain_ifreadonly(self.readonly)
@@ -212,19 +194,15 @@ class NewHttpFile(HttpFile):
         self._closed = 0
 
     def read(self, n=-1):
-        _complain_ifclosed(self._closed)
         return self._fp.read(n)
 
-    def readline(self, length=None):
-        _complain_ifclosed(self._closed)
-        return self._fp.readline(length)
+    def readline(self, *args, **kwds):
+        return self._fp.readline(*args, **kwds)
 
-    def readlines(self, sizehint=0):
-        _complain_ifclosed(self._closed)
-        return self._fp.readlines(sizehint)
+    def readlines(self, *args, **kwds):
+        return self._fp.readlines(*args, **kwds)
 
     def write(self, content):
-        _complain_ifclosed(self._closed)
         self._fp.write(content)
 
     def close(self):
@@ -232,6 +210,8 @@ class NewHttpFile(HttpFile):
             self._closed = 1
 
             content = self._fp.getvalue()
+            self._fp.close()
+
             for tried_devid, tried_path in self._paths:
                 try:
                     self._path = tried_path
@@ -262,9 +242,7 @@ class NewHttpFile(HttpFile):
                         raise
 
     def seek(self, pos, mode=0):
-        _complain_ifclosed(self._closed)
         return self._fp.seek(pos, mode)
 
     def tell(self):
-        _complain_ifclosed(self._closed)
         return self._fp.tell()

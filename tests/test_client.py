@@ -301,3 +301,32 @@ def test_delete():
     client.delete(key)
     paths = client.get_paths(key)
     assert not paths
+
+
+@with_setup(_setup, _teardown)
+def test_file_like_object():
+    def func(largefile):
+        client = Client(TEST_NS, HOSTS)
+        key = 'test_file_%s_%s' % (random.random(), time.time())
+
+        fp = client.new_file(key, largefile=largefile)
+        fp.write("spam\negg\nham\n")
+
+        fp.seek(0)
+        line = fp.readline()
+        assert line == "spam\n"
+        line = fp.readline()
+        assert line == "egg\n"
+        line = fp.readline()
+        assert line == "ham\n"
+        line = fp.readline()
+        assert line == ''
+
+        fp.seek(0)
+        lines = fp.readlines()
+        assert lines == ["spam\n", "egg\n", "ham\n"]
+
+        fp.close()
+
+    for largefile in (False, True):
+        yield func, largefile
