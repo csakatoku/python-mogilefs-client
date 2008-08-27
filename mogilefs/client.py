@@ -227,7 +227,7 @@ class Client(object):
             output = self.new_file(key, cls, largefile=1, **opts)
             bytes = 0
             while 1:
-                buf = fp.read(8192)
+                buf = fp.read(1024 * 16)
                 if not buf:
                     break
                 bytes += len(buf)
