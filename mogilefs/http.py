@@ -43,6 +43,7 @@ class HttpFile(object):
         self.key = key
         self.cls = cls
         self.create_close_arg = create_close_arg or {}
+        self.conn = httplib2.Http()
 
     def __enter__(self):
         return self
@@ -58,9 +59,8 @@ class HttpFile(object):
             except Exception, e:
                 logger.debug("got an exception in __del__: %s" % str(e))
 
-    def _request(self, method, *args, **kwds):
-        conn = httplib2.Http()
-        headers, content = conn.request(self._path, method, *args, **kwds)
+    def _request(self, path, method, *args, **kwds):
+        headers, content = self.conn.request(path, method, *args, **kwds)
         res = HttpResponse(headers, content)
         if not res.is_success():
             raise MogileFSHTTPError(res.status, res.headers, res.content)
@@ -77,9 +77,9 @@ class ClientHttpFile(HttpFile):
 
             if overwrite:
                 # Ensure file overwritten/created, even if they don't print anything
-                res = self._request("PUT", "", headers={"Content-Length": "0"})
+                res = self._request(tried_path, "PUT", "", headers={"Content-Length": "0"})
             else:
-                res = self._request("HEAD")
+                res = self._request(tried_path, "HEAD")
 
             if res.is_success():
                 if overwrite:
@@ -116,7 +116,7 @@ class ClientHttpFile(HttpFile):
             pass
 
         try:
-            res = self._request("GET", headers=headers)
+            res = self._request(self._path, "GET", headers=headers)
         except MogileFSHTTPError, e:
             if e.code == REQUESTED_RANGE_NOT_SATISFIABLE:
                 self._eof = 1
@@ -147,7 +147,7 @@ class ClientHttpFile(HttpFile):
         end   = self._pos + length - 1
         headers = { 'Content-Range': "bytes %d-%d/*" % (start, end),
                     }
-        res = self._request("PUT", content, headers=headers)
+        res = self._request(self._path, "PUT", content, headers=headers)
 
         if self._pos + length > self.length:
             self.length = self._pos + length
@@ -214,8 +214,7 @@ class NewHttpFile(HttpFile):
 
             for tried_devid, tried_path in self._paths:
                 try:
-                    self._path = tried_path
-                    res = self._request("PUT", content)
+                    res = self._request(tried_path, "PUT", content)
                     devid = tried_devid
                     path  = tried_path
                     break
