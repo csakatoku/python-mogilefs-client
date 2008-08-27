@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logging
-import httplib2
 
 from mogilefs.backend import Backend
 from mogilefs.exceptions import MogileFSError, MogileFSTrackerError
@@ -99,6 +98,31 @@ class Client(object):
                         )
 
     def edit_file(self, key, **opts):
+        """
+        EdiCt the file with the the given key.
+
+        B<NOTE:> edit_file is currently EXPERIMENTAL and not recommended for
+        production use. MogileFS is primarily designed for storing files
+        for later retrieval, rather than editing.  Use of this function may lead to
+        poor performance and, until it has been proven mature, should be
+        considered to also potentially cause data loss.
+
+        B<NOTE:> use of this function requires support for the DAV 'MOVE'
+        verb and partial PUT (i.e. Content-Range in PUT) on the back-end
+        storage servers (e.g. apache with mod_dav).
+
+        Returns a seekable filehandle you can read/write to. Calling this
+        function may invalidate some or all URLs you currently have for this
+        key, so you should call ->get_paths again afterwards if you need
+        them.
+
+        On close of the filehandle, the new file contents will replace the
+        previous contents (and again invalidate any existing URLs).
+
+        By default, the file contents are preserved on open, but you may
+        specify the overwrite option to zero the file first. The seek position
+        is at the beginning of the file, but you may seek to the end to append.
+        """
         _complain_ifreadonly(self.readonly)
         res = self.backend.do_request('edit_file',
                                       { 'domain': self.domain,
@@ -106,8 +130,12 @@ class Client(object):
                                         })
         oldpath = res['oldpath']
         newpath = res['newpath']
+        fid     = res['fid']
+        devid   = res['devid']
+        cls     = res['class']
 
         ## TODO
+        import httplib2
         conn = httplib2.Http()
         res, content = conn.request(oldpath,
                                     "MOVE",
@@ -117,7 +145,7 @@ class Client(object):
         if not (res.status >= 200 and res.status < 300):
             raise IOError("failed to MOVE %s to %s" % (newpath, oldpath))
 
-        return ClientHttpFile(mg=self, path=newpath, fid=res['fid'], devid=res['devid'], cls=res['class'],
+        return ClientHttpFile(mg=self, path=newpath, fid=fid, devid=devid, cls=cls,
                               key=key, overwrite=opts.get('overwrite'))
 
     def read_file(self, *args, **kwds):

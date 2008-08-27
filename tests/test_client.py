@@ -302,6 +302,23 @@ def test_delete():
     paths = client.get_paths(key)
     assert not paths
 
+@with_setup(_setup, _teardown)
+def test_edit_file():
+    cl = Client(TEST_NS, HOSTS)
+    key = 'test_file_%s_%s' % (random.random(), time.time())
+
+    cl.store_content(key, "SPAM")
+    assert cl.get_paths(key)
+    assert cl.get_file_data(key) == "SPAM"
+
+    fp = cl.edit_file(key)
+    assert fp
+    fp.write("s")
+    fp.seek(2)
+    fp.write("a")
+    fp.close()
+
+    assert cl.get_file_data(key) == "sPaM"
 
 @with_setup(_setup, _teardown)
 def test_file_like_object():

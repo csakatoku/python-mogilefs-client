@@ -72,6 +72,9 @@ class ClientHttpFile(HttpFile):
 
         super(ClientHttpFile, self).__init__(mg, fid, key, cls, create_close_arg)
 
+        if backup_dests is None:
+            backup_dests = []
+
         for tried_devid, tried_path in [(devid, path)] + list(backup_dests):
             self._path = tried_path
 
@@ -189,6 +192,8 @@ class NewHttpFile(HttpFile):
 
         super(NewHttpFile, self).__init__(mg, fid, key, cls, create_close_arg)
 
+        if backup_dests is None:
+            backup_dests = []
         self._fp = StringIO()
         self._paths = [(devid, path)] + list(backup_dests)
         self._closed = 0
