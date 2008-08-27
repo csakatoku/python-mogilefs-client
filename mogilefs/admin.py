@@ -77,28 +77,29 @@ class Admin(object):
         if 'replicationcount' in res:
             replication = ret.setdefault('replication', {})
             for x in xrange(1, int(res['replicationcount'])+1):
-                domain = res['replication%ddomain' % x]
-                cls = res['replication%dclass' % x]
-                devcount = res['replication%ddevcount' % x]
+                domain = res.get('replication%ddomain' % x, '')
+                cls = res.get('replication%dclass' % x, '')
+                devcount = res.get('replication%ddevcount' % x, '')
                 fields = res.get('replication%dfields' % x)
-                replication[domain][cls][devcount] = fields
+                (replication.setdefault(domain, {}).setdefault(cls, {}))[devcount] = fields
 
         # get file statistics
         if 'filescount' in res:
             files = ret.setdefault('files', {})
             for x in xrange(1, int(res['filescount'])+1):
-                domain = res['files%ddomain' % x]
-                cls = res['files%dclass' % x]
-                files[domain][cls] = res.get('files%dfiles' % x)
+                domain = res.get('files%ddomain' % x, '')
+                cls = res.get('files%dclass' % x, '')
+                (files.setdefault(domain, {}))[cls] = res.get('files%dfiles' % x)
 
         # get device statistics
         if 'devicescount' in res:
             devices = ret.setdefault('devices', {})
             for x in xrange(1, int(res['devicescount'])+1):
-                devices['devices%did' % x] = { 'host'  : res.get('devices%dhost' % x),
-                                               'status': res.get('devices%dstatus' % x),
-                                               'files' : res.get('devices%dfiles' % x),
-                                               }
+                key = res.get('devices%did' % x, '')
+                devices[key] = { 'host'  : res.get('devices%dhost' % x),
+                                 'status': res.get('devices%dstatus' % x),
+                                 'files' : res.get('devices%dfiles' % x),
+                                 }
 
         if 'fidmax' in res:
             ret['fids'] = { 'max': res['fidmax'],
