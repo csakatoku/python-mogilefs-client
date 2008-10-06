@@ -257,10 +257,10 @@ class Admin(object):
         self.backend.do_request("fsck_stop")
 
     def fsck_reset(self, policy_only, startpos):
-        return self.backend.do_request("fsck_reset",
-                                       { 'policy_only': policy_only,
-                                         'startpos'   : startpos,
-                                         })
+        self.backend.do_request("fsck_reset",
+                                { 'policy_only': policy_only,
+                                  'startpos'   : startpos,
+                                  })
 
     def fsck_clearlog(self):
         self.backend.do_request("fsck_clearlog")
@@ -268,8 +268,20 @@ class Admin(object):
     def fsck_status(self):
         return self.backend.do_request("fsck_status")
 
-    def fsck_log_rows(self):
-        raise NotImplemetedError()
+    def fsck_log_rows(self, after_logid=None):
+        params = {}
+        if after_logid:
+            params['after_logid'] = after_logid
+        res = self.backend.do_request("fsck_getlog", params)
+
+        row_count = int(res['row_count'])
+        ret = []
+        for x in xrange(1, row_count+1):
+            rec = {}
+            for k in ("logid", "utime", "fid", "evcode", "devid"):
+                rec[k] = res.get("row_%d_%s" % (x, k))
+            ret.append(rec)
+        return ret
 
     def set_server_settings(self, key, value):
         res = self.backend.do_request("set_server_setting",

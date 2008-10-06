@@ -140,15 +140,13 @@ def test_fsck_reset():
     moga.fsck_reset(0, 0)
 
 def test_fsck_log_rows():
-    ## TODO
-    assert False
+    moga = Admin(TRACKERS)
+    moga.fsck_log_rows()
 
 def test_fsck_clearlog():
     moga = Admin(TRACKERS)
     moga.fsck_clearlog()
 
-
-"""
 def test_list_fids():
     moga = Admin(TRACKERS)
     moga.list_fids(1, 10)
@@ -156,4 +154,4 @@ def test_list_fids():
 def test_get_stats():
     moga = Admin(TRACKERS)
     moga.get_stats()
-"""
+
