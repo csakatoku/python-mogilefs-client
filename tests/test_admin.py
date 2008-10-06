@@ -52,17 +52,19 @@ def test_create_class():
 
 def test_get_server_settings():
     moga = Admin(TRACKERS)
-    res = moga.get_server_settings()
+    res = moga.server_settings()
     assert res is not None
     assert 'schema_version' in res
+    try:
+        version = int(res['schema_version'])
+    except:
+        assert False, "schema version must be an integer"
 
 def test_set_server_settings():
     moga = Admin(TRACKERS)
-    try:
-        res = moga.set_server_settings("spam", "SPAM")
-    except MogileFSError:
-        ## TODO
-        pass
+    moga.set_server_settings("memcache_servers", "127.0.0.1:11211")
+    res = moga.server_settings()
+    assert res['memcache_servers'] == '127.0.0.1:11211'
 
 def test_get_devices():
     moga = Admin(TRACKERS)

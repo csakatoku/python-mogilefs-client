@@ -276,16 +276,16 @@ class Admin(object):
                                       { 'key': key,
                                         'value': value,
                                         })
-        return res
 
-    def get_server_settings(self):
+    def server_settings(self):
         res = self.backend.do_request("server_settings")
         if not res:
             return
         ret = {}
+        print res
         for x in xrange(1, int(res["key_count"])+1):
-            key = res["key_%d" % x]
-            value = res["key_%d" % x]
+            key = res.get("key_%d" % x, '')
+            value = res.get("value_%d" % x, '')
             ret[key] = value
         return ret
 
