@@ -31,7 +31,7 @@ class Client(object):
         return self.backend.get_last_tracker()
     last_tracker = property(get_last_tracker)
 
-    def new_file(self, key, cls=None, bytes=0, largefile=False, opts=None):
+    def new_file(self, key, cls=None, bytes=0, largefile=False, create_open_arg=None, create_close_arg=None, opts=None):
         """
         - class
         - key
@@ -42,8 +42,8 @@ class Client(object):
         """
         self.run_hook('new_file_start', key, cls, opts)
 
-        create_open_arg = {}
-        create_close_arg = {}
+        create_open_arg = create_open_arg or {}
+        create_close_arg = create_close_arg or {}
 
         # fid should be specified, or pass 0 meaning to auto-generate one
         fid = 0

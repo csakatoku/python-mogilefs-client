@@ -155,3 +155,15 @@ def test_get_stats():
     moga = Admin(TRACKERS)
     moga.get_stats()
 
+def test_slave_list():
+    assert False
+
+def test_slave_add():
+    assert False
+
+def test_slave_modify():
+    assert False
+
+def test_slave_delete():
+    assert False
+

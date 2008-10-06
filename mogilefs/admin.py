@@ -239,16 +239,108 @@ class Admin(object):
                                         })
 
     def slave_list(self):
-        raise NotImplemetedError()
+        keys = self._get_slave_keys()
+        ret = {}
+        for key in keys:
+            res = self.backend.do_request('server_setting',
+                                          { 'key': 'slave_%s' % key,
+                                            })
+            if not res:
+                continue
 
-    def slave_add(self):
-        raise NotImplemetedError()
+            value = res['value']
+            dsn, username, password = (value.split('|') + ['', ''])[:3]
+            ret[key] = (dsn, username, password)
 
-    def slave_modify(self):
-        raise NotImplemetedError()
+        return ret
 
-    def slave_delete(self):
-        raise NotImplemetedError()
+    def slave_add(self, key, dsn, username, password):
+        keys = self._get_slave_keys()
+        if key in keys:
+            return
+
+        value = '|'.join([dsn, username, password])
+        res = self.backend.do_request("set_server_setting",
+                                      { 'key'  : key,
+                                        'value': value,
+                                        })
+        keys[key] = None
+        self._set_slave_keys(keys)
+
+    def slave_modify(self, key, **opts):
+        keys = self._get_slave_keys()
+        if key not in keys:
+            # slave not fuond
+            return
+        res = self.backend.do_request("server_settings",
+                                      { "key": "slave_%s" % key,
+                                        })
+        value = res['value']
+        dsn, username, password = (value.split('|') + ['', ''])[:3]
+
+        dsn = opts.get('dsn') or dsn
+        username = opts.get('username') or username
+        password = opts.get('password') or password
+
+        value = '|'.join([dsn, username, password])
+        res = self.backend.do_request('set_server_setting',
+                                      { 'key'  : 'slave_%s' % key,
+                                        'value': value,
+                                        })
+
+    def slave_delete(self, key):
+        slave_keys = self._get_slave_keys()
+        if not slave_keys:
+            return
+
+        if key not in slave_keys:
+            # TODO
+            return
+
+        self.backend.do_request('set_server_setting',
+                                { key : "slave_%s" % key,
+                                  })
+        del slave_keys[key]
+        self._set_slave_keys(slave_keys)
+
+    def _get_slave_keys(self):
+        res = self.backend.do_request("server_setting",
+                                      { "key": "slave_keys",
+                                        })
+        if not res:
+            return {}
+
+        value = res['value']
+        slave_keys = {}
+        for slave in value.split(','):
+            key, weight = (slave.split("=", 1) + [None])[:2]
+            # Weight can be zero, so don't default to 1 if it's defined and longer than 0 characters.
+            try:
+                weight = int(weight)
+                if not weight:
+                    weight = 1
+            except (TypeError, ValueError):
+                weight = 1
+
+            slave_keys[key] = weight
+        return slave_keys
+
+    def _set_slave_keys(self, keys):
+        buf = []
+        for key. weight in keys.items():
+            try:
+                weight = int(weight)
+                if weight != 1:
+                    key = "%s=%d" % (key, weight)
+            except (TypeError, ValueError):
+                pass
+
+            buf.append(key)
+
+        self.backend.do_request("set_server_settings",
+                                { 'key'  : 'slave_keys',
+                                  'value': ''.join(buf)
+                                  })
 
     def fsck_start(self):
         self.backend.do_request("fsck_start")
