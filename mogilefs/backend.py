@@ -11,7 +11,7 @@ from errno import EINPROGRESS, EISCONN
 
 from mogilefs.exceptions import MogileFSTrackerError
 
-logger = logging
+logger = logging.getLogger('mobilefs.backend')
 
 PROTO_TCP = socket.getprotobyname('tcp')
 MSG_NOSIGNAL  = 0x4000
@@ -137,19 +137,17 @@ class Backend(object):
         self.run_hook('do_request_finished', cmd, self.last_host_connected)
         logger.debug('RESPONSE: %r' % line)
 
-        if line.startswith('OK'):
-            matcher = OK_RE.match(line)
-            if matcher:
-                args = _decode_url_string(matcher.group(1))
-                logger.debug("RETURN_VARS: %r" % args)
-                return args
+        matcher = OK_RE.match(line)
+        if matcher:
+            args = _decode_url_string(matcher.group(1))
+            logger.debug("RETURN_VARS: %r" % args)
+            return args
 
-        if line.startswith('ERR'):
-            matcher = ERR_RE.match(line)
-            if matcher:
-                self.lasterr, self.lasterrstr = map(urllib.unquote_plus, matcher.groups())
-                logger.debug("LASTERR: %s %s" % (self.lasterr, self.lasterrstr))
-                raise MogileFSTrackerError(self.lasterrstr, self.lasterr)
+        matcher = ERR_RE.match(line)
+        if matcher:
+            self.lasterr, self.lasterrstr = map(urllib.unquote_plus, matcher.groups())
+            logger.debug("LASTERR: %s %s" % (self.lasterr, self.lasterrstr))
+            raise MogileFSTrackerError(self.lasterrstr, self.lasterr)
 
         raise MogileFSTrackerError('invalid response from server: [%s]' % line)
 
