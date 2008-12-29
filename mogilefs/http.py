@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
-import httplib2
-from httplib import REQUESTED_RANGE_NOT_SATISFIABLE
+import urlparse
+import httplib
 from cStringIO import StringIO
 
 from mogilefs.exceptions import MogileFSHTTPError, MogileFSTrackerError
@@ -16,25 +16,14 @@ def _complain_ifreadonly(readonly):
     if readonly:
         raise ValueError("operation on read-only file")
 
-class HttpResponse(object):
-    def __init__(self, headers, content):
-        self.headers = headers
-        self.content = content
+def is_success(response):
+    return response.status >= 200 and response.status < 300
 
-    def is_success(self):
-        status = self.get_status()
-        return status >= 200 and status < 300
-
-    def get_status(self):
-        return int(self.headers['status'])
-    status = property(get_status)
-
-    def get_content_length(self):
-        try:
-            return long(self.headers['content-length'])
-        except (KeyError, ValueError, TypeError):
-            return 0
-    content_length = property(get_content_length)
+def get_content_length(response):
+    try:
+        return long(response.getheaders('content-length'))
+    except (TypeError, ValueError):
+        return 0
 
 class HttpFile(object):
     def __init__(self, mg, fid, key, cls, create_close_arg=None):
@@ -43,7 +32,7 @@ class HttpFile(object):
         self.key = key
         self.cls = cls
         self.create_close_arg = create_close_arg or {}
-        self.conn = httplib2.Http()
+        self._closed = False
 
     def __enter__(self):
         return self
@@ -56,14 +45,39 @@ class HttpFile(object):
         if not self._closed:
             try:
                 self.close()
+                self._closed = True
             except Exception, e:
                 logger.debug("got an exception in __del__: %s" % str(e))
 
+    def makedirs(self, path):
+        url = urlparse.urlsplit(path)
+        if url.scheme == 'http':
+            cls = httplib.HTTPConnection
+        elif url.scheme == 'https':
+            cls = httplib.HTTPSConnection
+        else:
+            raise ValueError("unsupported url scheme")
+
+        # remove fid
+        elements = url.path.split()[:-1]
+
     def _request(self, path, method, *args, **kwds):
-        headers, content = self.conn.request(path, method, *args, **kwds)
-        res = HttpResponse(headers, content)
-        if not res.is_success():
-            raise MogileFSHTTPError(res.status, res.headers, res.content)
+        url = urlparse.urlsplit(path)
+        if url.scheme == 'http':
+            conn = httplib.HTTPConnection(url.netloc)
+        elif url.scheme == 'https':
+            conn = httplib.HTTPSConnection(url.netloc)
+        elif not url.scheme:
+            raise ValueError("url scheme is empty")
+        else:
+            raise ValueError("unsupported url scheme '%s'" % url.scheme)
+
+        target = urlparse.urlunsplit((None, None, url.path, url.query, url.fragment))
+        conn.request(method, target, *args, **kwds)
+        res = conn.getresponse()
+        if not is_success(res):
+            print (url.netloc, target)
+            raise MogileFSHTTPError(res.status, dict(res.getheaders()), res.read())
         return res
 
 class ClientHttpFile(HttpFile):
@@ -80,15 +94,15 @@ class ClientHttpFile(HttpFile):
 
             if overwrite:
                 # Ensure file overwritten/created, even if they don't print anything
-                res = self._request(tried_path, "PUT", "", headers={"Content-Length": "0"})
+                res = self._request(tried_path, "PUT", "", headers={'Content-Length': '0'})
             else:
                 res = self._request(tried_path, "HEAD")
 
-            if res.is_success():
+            if is_success(res):
                 if overwrite:
                     self.length = 0
                 else:
-                    self.length = res.content_length
+                    self.length = get_content_length(res)
 
                 self.devid = tried_devid
                 self.path  = tried_path
@@ -121,13 +135,13 @@ class ClientHttpFile(HttpFile):
         try:
             res = self._request(self._path, "GET", headers=headers)
         except MogileFSHTTPError, e:
-            if e.code == REQUESTED_RANGE_NOT_SATISFIABLE:
+            if e.code == httplib.REQUESTED_RANGE_NOT_SATISFIABLE:
                 self._eof = 1
                 return ''
             else:
                 raise e
 
-        content = res.content
+        content = res.read()
         self._pos += len(content)
 
         if n < 0:
