@@ -49,36 +49,77 @@ class HttpFile(object):
             except Exception, e:
                 logger.debug("got an exception in __del__: %s" % str(e))
 
-    def makedirs(self, path):
+    def _makedirs(self, path):
         url = urlparse.urlsplit(path)
         if url.scheme == 'http':
-            cls = httplib.HTTPConnection
+            connection = httplib.HTTPConnection
         elif url.scheme == 'https':
-            cls = httplib.HTTPSConnection
+            connection = httplib.HTTPSConnection
         else:
             raise ValueError("unsupported url scheme")
 
-        # remove fid
-        elements = url.path.split()[:-1]
+        # MogileFS file path usually looks like
+        # /dev1/0/000/000/0000000900.fid
+        # or ["", "dev1", "0", "000", "000", "0000000900.fid"]
+        # when splitted.
+        if not path.endswith(".fid"):
+            raise ValueError("Invalid path '%s'. Maybe the file isn't MogileFS FID")
+
+        # first remove fid
+        elements = url.path.split("/")[:-1]
+        length = len(elements)
+        if length != 5:
+            raise ValueError("Invalid path '%s'. Maybe the file isn't MogileFS FID" % url.path)
+
+        created = False
+        for idx in xrange(3, length + 1):
+            # recursively create directories
+            # /dev1/0/
+            # /dev1/0/000/
+            # /dev1/0/000/000/
+            parent = "/".join(elements[:idx]) + "/"
+            conn = connection(url.netloc)
+            conn.request("MKCOL", parent)
+            res = conn.getresponse()
+            if res.status >= 200 and res.status < 300:
+                created = idx == length
+            elif res.status >= 400 and res.status < 500:
+                # keep going
+                continue
+            else:
+                # unexpected status code while making directories
+                raise MogileFSHTTPError(res.status, res.reason)
+
+        return created
 
     def _request(self, path, method, *args, **kwds):
         url = urlparse.urlsplit(path)
         if url.scheme == 'http':
-            conn = httplib.HTTPConnection(url.netloc)
+            connection = httplib.HTTPConnection
         elif url.scheme == 'https':
-            conn = httplib.HTTPSConnection(url.netloc)
+            connection = httplib.HTTPSConnection
         elif not url.scheme:
             raise ValueError("url scheme is empty")
         else:
             raise ValueError("unsupported url scheme '%s'" % url.scheme)
 
+        conn = connection(url.netloc)
         target = urlparse.urlunsplit((None, None, url.path, url.query, url.fragment))
         conn.request(method, target, *args, **kwds)
         res = conn.getresponse()
-        if not is_success(res):
-            print (url.netloc, target)
-            raise MogileFSHTTPError(res.status, dict(res.getheaders()), res.read())
-        return res
+        if is_success(res):
+            return res
+
+        if method == 'PUT' and res.status == 403:
+            created = self._makedirs(path)
+            if created:
+                conn = connection(url.netloc)
+                conn.request(method, target, *args, **kwds)
+                res = conn.getresponse()
+                if is_success(res):
+                    return res
+
+        raise MogileFSHTTPError(res.status, res.reason)
 
 class ClientHttpFile(HttpFile):
     def __init__(self, path, backup_dests=None, overwrite=False,

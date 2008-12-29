@@ -303,6 +303,15 @@ def test_delete():
     assert not paths
 
 @with_setup(_setup, _teardown)
+def test_mkcol():
+    client = Client(TEST_NS, HOSTS)
+    for x in xrange(0, 1000):
+        key = 'test_file_%s_%s_%d' % (random.random(), time.time(), x)
+        client.new_file(key).write("SPAM%s" % x)
+        paths = client.get_paths(key)
+        assert paths
+
+@with_setup(_setup, _teardown)
 def test_edit_file():
     # TODO
     # PASS
